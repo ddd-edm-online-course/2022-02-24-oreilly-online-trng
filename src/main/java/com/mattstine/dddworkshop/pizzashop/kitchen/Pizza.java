@@ -1,5 +1,6 @@
 package com.mattstine.dddworkshop.pizzashop.kitchen;
 
+import com.mattstine.dddworkshop.pizzashop.infrastructure.events.adapters.InProcessEventLog;
 import com.mattstine.dddworkshop.pizzashop.infrastructure.events.ports.EventLog;
 import com.mattstine.dddworkshop.pizzashop.infrastructure.events.ports.Topic;
 import com.mattstine.dddworkshop.pizzashop.infrastructure.repository.ports.Aggregate;
@@ -102,7 +103,12 @@ public final class Pizza implements Aggregate {
 
     @Override
     public Pizza identity() {
-        return null;
+        return Pizza.builder()
+                .size(Size.IDENTITY)
+                .eventLog(EventLog.IDENTITY)
+                .kitchenOrderRef(KitchenOrderRef.IDENTITY)
+                .ref(PizzaRef.IDENTITY)
+                .build();
     }
 
     @Override
@@ -136,7 +142,27 @@ public final class Pizza implements Aggregate {
 
         @Override
         public Pizza apply(Pizza pizza, PizzaEvent pizzaEvent) {
-            return null;
+            if (pizzaEvent instanceof PizzaAddedEvent) {
+                return Pizza.builder()
+                        .size(((PizzaAddedEvent) pizzaEvent).getState().getSize())
+                        .ref(((PizzaAddedEvent) pizzaEvent).getRef())
+                        .kitchenOrderRef(((PizzaAddedEvent) pizzaEvent).getState().getKitchenOrderRef())
+                        .eventLog(InProcessEventLog.instance())
+                        .build();
+            } else if (pizzaEvent instanceof PizzaPrepStartedEvent) {
+                pizza.state = State.PREPPING;
+                return pizza;
+            } else if (pizzaEvent instanceof PizzaPrepFinishedEvent) {
+                pizza.state = State.PREPPED;
+                return pizza;
+            } else if (pizzaEvent instanceof PizzaBakeStartedEvent) {
+                pizza.state = State.BAKING;
+                return pizza;
+            } else if (pizzaEvent instanceof PizzaBakeFinishedEvent) {
+                pizza.state = State.BAKED;
+                return pizza;
+            }
+            throw new IllegalArgumentException();
         }
     }
 
